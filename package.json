@@ -1,0 +1,64 @@
+{
+  "name": "my-house-mx",
+  "productName": "My House Mx",
+  "version": "1.10.0",
+  "description": "Controle remoto para mesas de som digitais (compatível com Behringer X32 e M32 via OSC)",
+  "main": "main.js",
+  "author": "Marcelo",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.marcelo.myhousemx",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "My-House-Mx-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "SEU_USUARIO",
+        "repo": "SEU_REPOSITORIO",
+        "releaseType": "release"
+      }
+    ],
+    "artifactName": "My-House-Mx-${version}-${os}-${arch}.${ext}",
+    "portable": {
+      "artifactName": "My-House-Mx-Portable-${version}.${ext}"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "discover.js",
+      "renderer/**/*",
+      "build/icon.png",
+      "package.json"
+    ]
+  }
+}
