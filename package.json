@@ -43,7 +43,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "mmilworks",
+        "owner": "mmilworks-gif",
         "repo": "MHMX",
         "releaseType": "release"
       }
