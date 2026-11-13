@@ -43,7 +43,7 @@ function def(addr) {
   return undefined;
 }
 
-module.exports = function makeDemo(emit, emitMeters, emitRta) {
+module.exports = function makeDemo(emit, emitMeters, emitRta, emitGr, emitM2) {
   const P = new Map(); let timer = null, t = 0, rta = false;
   return {
     start() {
@@ -54,6 +54,8 @@ module.exports = function makeDemo(emit, emitMeters, emitRta) {
           m[i] = Math.max(0, Math.min(1, act * (0.25 + 0.5 * Math.abs(Math.sin(t * (1.2 + (i % 7) * 0.35) + i))) * rnd(0.7, 1)));
         }
         emitMeters(m);
+        if (emitGr) { const g = new Array(96).fill(1); for (let i = 0; i < 32; i++) { g[i] = m[i]; g[32 + i] = i < 16 && m[i] < 0.1 ? 0.35 : 1; g[64 + i] = i < 16 ? 1 - Math.min(0.7, Math.max(0, (m[i] - 0.3) * 1.1)) : 1; } emitGr(g); }
+        if (emitM2) { const x = new Array(49).fill(1); for (let i = 0; i < 16; i++) x[i] = m[48 + i]; for (let i = 0; i < 6; i++) x[16 + i] = m[64 + i]; x[22] = Math.min(1, 0.55 + 0.35 * Math.abs(Math.sin(t * 1.7))); x[23] = Math.min(1, 0.5 + 0.35 * Math.abs(Math.sin(t * 1.3 + 1))); x[24] = (x[22] + x[23]) / 2; emitM2(x); }
         if (rta && emitRta) emitRta(Array.from({ length: 100 }, (_, i) => -22 - i * 0.28 + 9 * Math.exp(-Math.pow((i - 22 - 6 * Math.sin(t)) / 5, 2)) + 7 * Math.exp(-Math.pow((i - 60) / 7, 2)) * Math.abs(Math.sin(t * 1.3)) + rnd(-2.5, 2.5)));
       }, 100);
     },

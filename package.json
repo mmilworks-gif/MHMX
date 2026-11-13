@@ -1,7 +1,7 @@
 {
   "name": "my-house-mx",
   "productName": "My House Mx",
-  "version": "1.10.1",
+  "version": "1.13.0",
   "description": "Controle remoto para mesas de som digitais (compatível com Behringer X32 e M32 via OSC)",
   "main": "main.js",
   "author": "Marcelo",
