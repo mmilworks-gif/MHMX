@@ -14,6 +14,15 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm install
+      - name: Validate application files
+        shell: bash
+        run: |
+          test -s renderer/index.html
+          test -s renderer/app.js
+          test -s renderer/style.css
+          test -s renderer/logo.png
+          test -s build/icon.png
+          test -s build/icon.ico
       - run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

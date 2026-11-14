@@ -166,7 +166,11 @@ app.whenReady().then(() => {
     width: 1400, height: 900, minWidth: 1100, minHeight: 700, backgroundColor: '#14161a', autoHideMenuBar: true, icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true }
   });
-  win.loadFile('renderer/index.html');
+  win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Falha ao carregar a interface:', { errorCode, errorDescription, validatedURL });
+    if (!win.isDestroyed()) win.webContents.openDevTools({ mode: 'detach' });
+  });
+  win.loadFile('renderer/index.html').catch(err => console.error('loadFile(renderer/index.html) falhou:', err));
   win.on('closed', () => { stopAll(); if (mwin && !mwin.isDestroyed()) mwin.destroy(); win = null; });
 });
 app.on('before-quit', () => { try { stopAll(); } catch (e) {} });
