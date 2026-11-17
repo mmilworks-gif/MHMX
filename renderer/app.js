@@ -48,7 +48,7 @@ const dbToF = db => db >= -10 ? (db + 30) / 40 : db >= -30 ? (db + 50) / 80 : db
 const MARKS = [[10, '10'], [5, '5'], [0, '0'], [-5, '5'], [-10, '10'], [-20, '20'], [-30, '30'], [-50, '50']];
 const MAINLR = LAYERS['Main / Mtx'][0], MONO = LAYERS['Main / Mtx'][1];
 const FIXED = {
-  '1-32': [...LAYERS['Ch 1-16'], ...LAYERS['Ch 17-32']], 'Aux FX': LAYERS['Aux / FX'],
+  '1-32': [...LAYERS['Ch 1-16'], ...LAYERS['Ch 17-32']], '1-16': LAYERS['Ch 1-16'], '17-32': LAYERS['Ch 17-32'], 'Aux FX': LAYERS['Aux / FX'],
   'Bus Mtx': [...LAYERS['Buses'], ...LAYERS['Main / Mtx'].filter(s => s !== MAINLR)], 'DCA': LAYERS['DCA']
 };
 const SOFK = ['ch', 'auxin', 'fxrtn'], RATIOS = [1.1, 1.3, 1.5, 2, 2.5, 3, 4, 5, 7, 10, 20, 100];
@@ -153,6 +153,7 @@ function queryAll() {
 
 // ---------- painel de detalhes ----------
 let reg = {}, pending = [], eqInfo = null, dynInfos = [], rtaOn = false, rtaData = [];
+let meterLevels = [], meterGr = [], meterOutputs = [], meterView = 'inputs', meterRenderPending = false;
 const addReg = (a, f) => (reg[a] = reg[a] || []).push(f);
 function mkSlider(addr, fmt, val) {
   const i = document.createElement('input'); i.type = 'range'; i.min = 0; i.max = 1; i.step = 0.001; i.value = 0;
@@ -545,6 +546,15 @@ function dynDraw() {
     for (let d = lo; d <= 0; d += 1) { const o = Math.max(lo, Math.min(0, out(d))); d === lo ? c.moveTo(X(d), Y(o)) : c.lineTo(X(d), Y(o)); } c.stroke();
     c.fillStyle = '#fff'; c.font = 'bold 14px sans-serif';
     c.fillText(gate ? `Limiar ${thr.toFixed(1)} dB   Range ${rg.toFixed(0)} dB` : `Limiar ${thr.toFixed(1)} dB   ${R}:1   Makeup +${mk.toFixed(1)} dB`, 40, 18);
+    if (!gate) {
+      const mi = allStrips().find(s => s.base === b)?.meter, raw = mi >= 0 ? meterLevels[mi] : undefined;
+      if (raw !== undefined && raw > 0) {
+        const inn = Math.max(lo, Math.min(0, 20 * Math.log10(raw))), o = Math.max(lo, Math.min(0, out(inn))), gr = Math.max(0, inn - o);
+        c.strokeStyle = '#ff4545'; c.lineWidth = 3; c.beginPath(); c.moveTo(X(inn), Y(inn)); c.lineTo(X(inn), Y(o)); c.stroke();
+        c.fillStyle = '#ff7777'; c.beginPath(); c.arc(X(inn), Y(o), 5, 0, Math.PI * 2); c.fill();
+        c.font = 'bold 13px sans-serif'; c.fillText(`GR -${gr.toFixed(1)} dB`, W - 105, 18);
+      }
+    }
     if (!on) { c.fillStyle = '#ff9a9a'; c.fillText('desligado', W - 90, 18); }
   });
 }
@@ -571,7 +581,7 @@ function showTab(n) {
   if (n === 'FX1 - 4') return buildFx(1);
   if (n === 'FX5 - 8') return buildFx(5);
 }
-const PAGEFN = { Routing: () => buildRouting(), Library: () => buildScenes(), 'Mute Grp': () => buildGroups(), Monitor: () => buildMonitor(), Links: () => buildLinks(), Bancos: () => buildBanks() };
+const PAGEFN = { Routing: () => buildRouting(), Library: () => buildScenes(), 'Mute Grp': () => buildGroups(), Monitor: () => buildMonitor(), Links: () => buildLinks(), Bancos: () => buildBanks(), Meter: () => buildMeters() };
 function rebuildPage() { if (TABS.some(t => t[0] === curPage)) showTab(curPage); else if (PAGEFN[curPage]) PAGEFN[curPage](); }
 
 // ---------- painel direito ----------
@@ -583,12 +593,39 @@ function applySof() {
   if (q.length) x32.query(q);
 }
 function setSof(n) { sofBus = n; document.querySelectorAll('.bb.bus').forEach(b => b.classList.toggle('on', +b.dataset.n === n)); applySof(); }
+function meterDb(v) { return v > 0 ? 20 * Math.log10(v) : -90; }
+function meterPct(v) { return Math.max(0, Math.min(100, (meterDb(v) + 60) / 60 * 100)); }
+function meterColor(v) { const d = meterDb(v); return d >= -6 ? '#ef4444' : d >= -20 ? '#f59e0b' : '#35c759'; }
+function meterCard(label, v, gr) {
+  const d = meterDb(v), card = document.createElement('div'); card.className = 'mcard';
+  const grTxt = gr === undefined ? '' : ` · GR -${Math.max(0, gr).toFixed(1)} dB`;
+  card.innerHTML = `<div class="mhead"><b>${label}</b><span class="mdB">${d <= -89 ? '-∞' : d.toFixed(1)} dB</span></div><div class="mtrack"><i style="height:${meterPct(v)}%;background:${meterColor(v)}"></i></div><div class="mfoot">${grTxt || 'sinal'}</div>`;
+  return card;
+}
+function renderMeterPage() {
+  const host = $('#meterGrid'); if (!host) return; host.innerHTML = '';
+  let list = [];
+  if (meterView === 'inputs') list = range(32, i => ({ label: 'Ch ' + p2(i), v: meterLevels[i - 1], gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i - 1] ?? 1)) * 20) : undefined }));
+  else if (meterView === 'aux') list = [...range(8, i => ({ label: 'Aux ' + i, v: meterLevels[31 + i] })), ...range(8, i => ({ label: 'FX ' + i, v: meterLevels[39 + i] }))];
+  else if (meterView === 'buses') list = range(16, i => ({ label: 'Bus ' + i, v: meterOutputs[i] }));
+  else list = [{ label: 'Main L', v: meterOutputs[22] }, { label: 'Main R', v: meterOutputs[23] }, { label: 'Mono', v: meterOutputs[24] }];
+  list.forEach(x => host.appendChild(meterCard(x.label, Number.isFinite(x.v) ? x.v : 0, x.gr)));
+}
+function scheduleMeterRender() { if (meterRenderPending) return; meterRenderPending = true; requestAnimationFrame(() => { meterRenderPending = false; renderMeterPage(); }); }
+function buildMeters() {
+  const rt = special('Meter');
+  rt.innerHTML = `<div class="meterHead"><div><h2>Meter</h2><p>Leitura de sinal recebida da mesa. Verde: normal · laranja: -20 dB ou acima · vermelho: próximo do clipping.</p></div><div class="meterLegend"><span class="lg green"></span> normal <span class="lg orange"></span> -20 dB <span class="lg red"></span> -6 dB</div></div><div class="meterTabs"></div><div id="meterGrid" class="meterGrid"></div>`;
+  const tabs = [['inputs', 'Entradas 1–32'], ['aux', 'Aux / FX'], ['buses', 'Buses'], ['main', 'Main / Mono']];
+  const bar = rt.querySelector('.meterTabs'); tabs.forEach(([k, t]) => { const b = document.createElement('button'); b.textContent = t; b.className = k === meterView ? 'on' : ''; b.onclick = () => { meterView = k; bar.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); renderMeterPage(); }; bar.appendChild(b); });
+  renderMeterPage();
+}
 function buildRight() {
   const r = $('#rctl'), el = (t, c, h) => { const d = document.createElement(t); if (c) d.className = c; if (h !== undefined) d.innerHTML = h; return d; };
   const ib = el('div', 'ibtns');
-  [['⚙', 'Setup', () => buildLinks()], ['⇅', 'Routing', () => buildRouting()], ['▤', 'Library', () => buildScenes()], ['◉', 'Assign', () => buildGroups()], ['♫', 'Monitor', () => buildMonitor()]]
+  [['⚙', 'Setup', () => buildLinks()], ['⇅', 'Routing', () => buildRouting()], ['▤', 'Library', () => buildScenes()], ['◉', 'Assign', () => buildGroups()], ['♫', 'Monitor', () => buildMonitor()], ['▥', 'Meter', () => buildMeters()]]
     .forEach(([i, t, f]) => { const b = el('button', '', `<b>${i}</b>${t}`); b.onclick = f; ib.appendChild(b); });
   r.appendChild(ib); r.appendChild(el('div', 'rsec', 'Select'));
+  const rg = el('div', 'rbtn2'); [['1-32', 'Todos / 1–32'], ['1-16', 'Canais 1–16'], ['17-32', 'Canais 17–32']].forEach(([k, t]) => { const b = el('button', 'quickBank', t); b.dataset.bank = k; b.onclick = () => { build(k); showTab('Mixer'); document.querySelectorAll('.quickBank').forEach(x => x.classList.toggle('on', x.dataset.bank === k)); }; rg.appendChild(b); }); r.appendChild(rg);
   const r1 = el('div', 'r3'); const cs = el('button', '', 'Clear Solo'); cs.onclick = clearSolo; r1.appendChild(cs);
   ['A', 'B'].forEach(k => { const t = el('button', '', k); const a = `/-stat/talk/${k}`; t.title = 'Talkback ' + k + ' (segure)'; const on = v => { t.classList.toggle('m', !!v); x32.set(a, 'i', v); }; t.onmousedown = () => on(1); t.onmouseup = t.onmouseleave = () => { if (t.classList.contains('m')) on(0); }; r1.appendChild(t); });
   r.appendChild(r1);
@@ -638,11 +675,13 @@ x32.onOsc((a, v) => {
   els.forEach(e => { const s = e.s; if (a === e.fa || a === e.oa || [s.pan, s.name, s.color].includes(a) || a === e.sa) refresh(e); });
   if (a === '/main/st/mix/fader' || a === '/main/st/mix/on') { /* strip Main já coberto acima */ }
 });
-x32.onMeters(m => els.forEach(e => {
+x32.onMeters(m => { meterLevels = m || []; scheduleMeterRender(); els.forEach(e => {
   if (e.s.meter < 0) return;
   const v = m[e.s.meter] || 0, db = v > 0 ? 20 * Math.log10(v) : -90;
   e.mt.style.height = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + '%';
-}));
+}); });
+x32.onGr(g => { meterGr = g || []; scheduleMeterRender(); dynDraw(); });
+x32.onMeters2(m => { meterOutputs = m || []; scheduleMeterRender(); });
 x32.onRta(arr => { if (rtaOn) { rtaData = arr; if (eqInfo) eqDraw(); } });
 x32.onStatus(s => $('#status').textContent = s);
 x32.onConn((s, ip) => {

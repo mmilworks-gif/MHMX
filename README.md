@@ -30,6 +30,7 @@ Envie primeiro os demais arquivos e, por último, o package.json.
 O botão "Verificar atualização" do app instalado baixa a versão publicada.
 
 ## Histórico
+- 1.13.3: grupos rápidos 1–16/17–32, tela Meter, strips mais largos, VU recalibrado e indicação visual de redução do compressor
 - 1.13.2: novo ícone de alta resolução, com maior contraste e legibilidade no menu Iniciar e na barra de tarefas
 - 1.13.0: corrige os medidores de aux, FX, buses e matrix; redução de ganho no gráfico do compressor e do gate; painel Meter (com janela separada); bancos 1-16 e 17-32; faixas mais largas; cores do VU por nível
 - 1.12.0: botão Aparência: escolha do tamanho da interface (80% a 175%) e atalhos Ctrl + / Ctrl -
