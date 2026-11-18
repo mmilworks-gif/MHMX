@@ -135,3 +135,18 @@ canvas.eq{cursor:crosshair}
 .rtaopt{display:block;margin:6px 0;color:#b5b5b5}.hint{color:#8a93a3;font-size:11px;margin:2px 0 6px}
 .hp.eqp canvas.eq{height:220px}
 .meterHead{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:1px solid #444;padding-bottom:8px;margin-bottom:8px}.meterHead h2{margin:0;color:#fff;font-size:18px}.meterHead p{margin:5px 0 0;color:#9aa3b2}.meterLegend{display:flex;align-items:center;gap:5px;color:#bfc7d4;white-space:nowrap;font-size:11px}.lg{display:inline-block;width:12px;height:12px;border-radius:2px;margin-left:8px}.lg.green{background:#35c759}.lg.orange{background:#f59e0b}.lg.red{background:#ef4444}.meterTabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}.meterTabs button.on{background:#0e4a52;border-color:#35e0e0;color:#fff}.meterGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:5px;align-items:stretch;min-height:220px}.mcard{background:#24272c;border:1px solid #454b55;border-radius:3px;padding:5px 4px;display:flex;flex-direction:column;min-height:210px}.mhead{display:flex;flex-direction:column;gap:3px;text-align:center;white-space:nowrap;overflow:hidden}.mhead b{font-size:10px;color:#e8edf4;overflow:hidden;text-overflow:ellipsis}.mdB{font:10px Consolas,monospace;color:#8fd6d6}.mtrack{position:relative;flex:1;min-height:130px;background:#080a0c;border:1px solid #363b43;margin:5px auto;width:16px;display:flex;align-items:flex-end}.mtrack i{display:block;width:100%;min-height:0;transition:height .08s linear}.mfoot{height:14px;color:#8d96a3;font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Meter console digital: 16 canais por banco, escala, segmentos e peak hold */
+.meterGrid{display:grid;grid-template-columns:repeat(16,minmax(48px,1fr));gap:4px;align-items:stretch;min-height:270px}
+.mcard{background:linear-gradient(#2b2e34,#202328);border:1px solid #4a5059;border-radius:2px;padding:5px 3px;display:flex;flex-direction:column;min-height:255px;box-shadow:inset 0 1px #ffffff0b}
+.mhead{display:flex;flex-direction:column;gap:3px;text-align:center;white-space:nowrap;overflow:hidden}
+.mhead b{font-size:10px;color:#e8edf4;overflow:hidden;text-overflow:ellipsis}
+.mdB{font:10px Consolas,monospace;color:#8fd6d6}
+.mtrack{position:relative;flex:1;min-height:175px;background:#080a0c;border:1px solid #363b43;margin:5px auto;width:22px;display:flex;align-items:flex-end;overflow:visible}
+.mtrack::before{content:"";position:absolute;inset:0;background:linear-gradient(to top,#20c45a 0%,#20c45a 66%,#f2b01e 66%,#f2b01e 90%,#ed3b32 90%,#ed3b32 100%);opacity:.22}
+.mtrack::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to top,transparent 0 8px,#111820 8px 10px);pointer-events:none}
+.mtrack i{position:absolute;z-index:1;bottom:0;left:0;right:0;display:block;min-height:0;background:linear-gradient(to top,#26d366 0%,#26d366 66%,#ffb51b 66%,#ffb51b 90%,#ff4038 90%,#ff4038 100%);transition:height .08s linear}
+.mpeak{position:absolute;z-index:3;left:-3px;right:-3px;height:2px;background:#f5f7fa;box-shadow:0 0 3px #fff;pointer-events:none}
+.mtick{position:absolute;z-index:4;left:25px;color:#7e8996;font:8px Consolas,monospace;line-height:1}.t0{top:-2px}.tm20{top:30%}.tm40{top:63%}.tm60{bottom:-2px}
+.mfoot{height:14px;color:#8d96a3;font-size:9px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:1100px){.meterGrid{grid-template-columns:repeat(8,minmax(48px,1fr))}.mcard{min-height:210px}.mtrack{min-height:140px}}

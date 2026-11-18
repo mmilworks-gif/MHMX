@@ -154,6 +154,7 @@ function queryAll() {
 // ---------- painel de detalhes ----------
 let reg = {}, pending = [], eqInfo = null, dynInfos = [], rtaOn = false, rtaData = [];
 let meterLevels = [], meterGr = [], meterOutputs = [], meterView = 'inputs', meterRenderPending = false;
+let meterPeaks = [], meterPeakAt = [];
 const addReg = (a, f) => (reg[a] = reg[a] || []).push(f);
 function mkSlider(addr, fmt, val) {
   const i = document.createElement('input'); i.type = 'range'; i.min = 0; i.max = 1; i.step = 0.001; i.value = 0;
@@ -596,26 +597,27 @@ function setSof(n) { sofBus = n; document.querySelectorAll('.bb.bus').forEach(b 
 function meterDb(v) { return v > 0 ? 20 * Math.log10(v) : -90; }
 function meterPct(v) { return Math.max(0, Math.min(100, (meterDb(v) + 60) / 60 * 100)); }
 function meterColor(v) { const d = meterDb(v); return d >= -6 ? '#ef4444' : d >= -20 ? '#f59e0b' : '#35c759'; }
-function meterCard(label, v, gr) {
-  const d = meterDb(v), card = document.createElement('div'); card.className = 'mcard';
+function meterCard(label, v, gr, key) {
+  const d = meterDb(v), peak = meterPeaks[key] ?? v, card = document.createElement('div'); card.className = 'mcard';
   const grTxt = gr === undefined ? '' : ` · GR -${Math.max(0, gr).toFixed(1)} dB`;
-  card.innerHTML = `<div class="mhead"><b>${label}</b><span class="mdB">${d <= -89 ? '-∞' : d.toFixed(1)} dB</span></div><div class="mtrack"><i style="height:${meterPct(v)}%;background:${meterColor(v)}"></i></div><div class="mfoot">${grTxt || 'sinal'}</div>`;
+  card.innerHTML = `<div class="mhead"><b>${label}</b><span class="mdB">${d <= -89 ? '-∞' : d.toFixed(1)} dB</span></div><div class="mtrack"><span class="mtick t0">0</span><span class="mtick tm20">-20</span><span class="mtick tm40">-40</span><span class="mtick tm60">-60</span><i style="height:${meterPct(v)}%"></i><em class="mpeak" style="bottom:${meterPct(peak)}%"></em></div><div class="mfoot">${grTxt || 'peak ' + (meterDb(peak) <= -89 ? '-∞' : meterDb(peak).toFixed(1) + ' dB')}</div>`;
   return card;
 }
 function renderMeterPage() {
   const host = $('#meterGrid'); if (!host) return; host.innerHTML = '';
   let list = [];
-  if (meterView === 'inputs') list = range(32, i => ({ label: 'Ch ' + p2(i), v: meterLevels[i - 1], gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i - 1] ?? 1)) * 20) : undefined }));
-  else if (meterView === 'aux') list = [...range(8, i => ({ label: 'Aux ' + i, v: meterLevels[31 + i] })), ...range(8, i => ({ label: 'FX ' + i, v: meterLevels[39 + i] }))];
-  else if (meterView === 'buses') list = range(16, i => ({ label: 'Bus ' + i, v: meterOutputs[i] }));
+  if (meterView === 'inputs') list = range(16, i => ({ label: 'Ch ' + p2(i), v: meterLevels[i - 1], key: i - 1, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i - 1] ?? 1)) * 20) : undefined }));
+  else if (meterView === 'inputs2') list = range(16, i => ({ label: 'Ch ' + p2(i + 16), v: meterLevels[i + 15], key: i + 15, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i + 15] ?? 1)) * 20) : undefined }));
+  else if (meterView === 'aux') list = [...range(8, i => ({ label: 'Aux ' + i, v: meterLevels[31 + i], key: 31 + i })), ...range(8, i => ({ label: 'FX ' + i, v: meterLevels[39 + i], key: 39 + i }))];
+  else if (meterView === 'buses') list = range(16, i => ({ label: 'Bus ' + i, v: meterOutputs[i], key: 70 + i }));
   else list = [{ label: 'Main L', v: meterOutputs[22] }, { label: 'Main R', v: meterOutputs[23] }, { label: 'Mono', v: meterOutputs[24] }];
-  list.forEach(x => host.appendChild(meterCard(x.label, Number.isFinite(x.v) ? x.v : 0, x.gr)));
+  list.forEach((x, i) => host.appendChild(meterCard(x.label, Number.isFinite(x.v) ? x.v : 0, x.gr, x.key ?? (90 + i))));
 }
 function scheduleMeterRender() { if (meterRenderPending) return; meterRenderPending = true; requestAnimationFrame(() => { meterRenderPending = false; renderMeterPage(); }); }
 function buildMeters() {
   const rt = special('Meter');
-  rt.innerHTML = `<div class="meterHead"><div><h2>Meter</h2><p>Leitura de sinal recebida da mesa. Verde: normal · laranja: -20 dB ou acima · vermelho: próximo do clipping.</p></div><div class="meterLegend"><span class="lg green"></span> normal <span class="lg orange"></span> -20 dB <span class="lg red"></span> -6 dB</div></div><div class="meterTabs"></div><div id="meterGrid" class="meterGrid"></div>`;
-  const tabs = [['inputs', 'Entradas 1–32'], ['aux', 'Aux / FX'], ['buses', 'Buses'], ['main', 'Main / Mono']];
+  rt.innerHTML = `<div class="meterHead"><div><h2>Meter / níveis</h2><p>Leitura de sinal da mesa em padrão de console digital. O traço branco indica o peak hold.</p></div><div class="meterLegend"><span class="lg green"></span> normal <span class="lg orange"></span> -20 dB <span class="lg red"></span> -6 dB</div></div><div class="meterTabs"></div><div id="meterGrid" class="meterGrid"></div>`;
+  const tabs = [['inputs', 'Inputs 1–16'], ['inputs2', 'Inputs 17–32'], ['aux', 'Aux / FX'], ['buses', 'Mix Bus 1–16'], ['main', 'Main / Mono']];
   const bar = rt.querySelector('.meterTabs'); tabs.forEach(([k, t]) => { const b = document.createElement('button'); b.textContent = t; b.className = k === meterView ? 'on' : ''; b.onclick = () => { meterView = k; bar.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); renderMeterPage(); }; bar.appendChild(b); });
   renderMeterPage();
 }
@@ -675,7 +677,7 @@ x32.onOsc((a, v) => {
   els.forEach(e => { const s = e.s; if (a === e.fa || a === e.oa || [s.pan, s.name, s.color].includes(a) || a === e.sa) refresh(e); });
   if (a === '/main/st/mix/fader' || a === '/main/st/mix/on') { /* strip Main já coberto acima */ }
 });
-x32.onMeters(m => { meterLevels = m || []; scheduleMeterRender(); els.forEach(e => {
+x32.onMeters(m => { meterLevels = m || []; const now = Date.now(); meterLevels.forEach((v, i) => { if (v >= (meterPeaks[i] || 0) || now - (meterPeakAt[i] || 0) > 900) { meterPeaks[i] = v; meterPeakAt[i] = now; } else { meterPeaks[i] *= 0.985; } }); scheduleMeterRender(); els.forEach(e => {
   if (e.s.meter < 0) return;
   const v = m[e.s.meter] || 0, db = v > 0 ? 20 * Math.log10(v) : -90;
   e.mt.style.height = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + '%';
