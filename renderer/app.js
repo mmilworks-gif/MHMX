@@ -603,8 +603,33 @@ function meterCard(label, v, gr, key) {
   card.innerHTML = `<div class="mhead"><b>${label}</b><span class="mdB">${d <= -89 ? '-∞' : d.toFixed(1)} dB</span></div><div class="mtrack"><span class="mtick t0">0</span><span class="mtick tm20">-20</span><span class="mtick tm40">-40</span><span class="mtick tm60">-60</span><i style="height:${meterPct(v)}%"></i><em class="mpeak" style="bottom:${meterPct(peak)}%"></em></div><div class="mfoot">${grTxt || 'peak ' + (meterDb(peak) <= -89 ? '-∞' : meterDb(peak).toFixed(1) + ' dB')}</div>`;
   return card;
 }
+function overviewBars(values, unavailable = false) {
+  if (unavailable) return '<span class="ovna">OSC sem leitura</span>';
+  return values.map(v => `<i style="height:${meterPct(Number.isFinite(v) ? v : 0)}%;background:${meterColor(Number.isFinite(v) ? v : 0)}"></i>`).join('');
+}
+function overviewBlock(label, values, view, unavailable = false) {
+  const b = document.createElement('button'); b.className = 'ovblock' + (unavailable ? ' unavailable' : '');
+  b.innerHTML = `<strong>${label}</strong><span class="ovbars">${overviewBars(values, unavailable)}</span><small>${unavailable ? 'sem telemetria direta' : 'abrir detalhes'}</small>`;
+  if (!unavailable) b.onclick = () => { meterView = view; renderMeterPage(); document.querySelectorAll('.meterTabs button').forEach(x => x.classList.toggle('on', x.dataset.view === view)); };
+  return b;
+}
+function renderMeterOverview() {
+  const host = $('#meterOverview'); if (!host) return; host.innerHTML = '';
+  const add = (label, values, view, unavailable) => host.appendChild(overviewBlock(label, values, view, unavailable));
+  add('CH 1–8', meterLevels.slice(0, 8), 'inputs', false);
+  add('CH 9–16', meterLevels.slice(8, 16), 'inputs', false);
+  add('CH 17–24', meterLevels.slice(16, 24), 'inputs2', false);
+  add('CH 25–32', meterLevels.slice(24, 32), 'inputs2', false);
+  add('AUX 1–8', meterLevels.slice(32, 40), 'aux', false);
+  add('BUS 1–8', meterOutputs.slice(0, 8), 'buses', false);
+  add('BUS 9–16', meterOutputs.slice(8, 16), 'buses', false);
+  add('DCA 1–8', [], 'main', true);
+  add('DCA 9–16', [], 'main', true);
+  add('MAIN', meterOutputs.slice(22, 25), 'main', false);
+  add('MTX 1–6', meterOutputs.slice(16, 22), 'main', false);
+}
 function renderMeterPage() {
-  const host = $('#meterGrid'); if (!host) return; host.innerHTML = '';
+  const host = $('#meterGrid'); if (!host) return; host.innerHTML = ''; renderMeterOverview(); renderMeterOverview();
   let list = [];
   if (meterView === 'inputs') list = range(16, i => ({ label: 'Ch ' + p2(i), v: meterLevels[i - 1], key: i - 1, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i - 1] ?? 1)) * 20) : undefined }));
   else if (meterView === 'inputs2') list = range(16, i => ({ label: 'Ch ' + p2(i + 16), v: meterLevels[i + 15], key: i + 15, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i + 15] ?? 1)) * 20) : undefined }));
@@ -616,9 +641,9 @@ function renderMeterPage() {
 function scheduleMeterRender() { if (meterRenderPending) return; meterRenderPending = true; requestAnimationFrame(() => { meterRenderPending = false; renderMeterPage(); }); }
 function buildMeters() {
   const rt = special('Meter');
-  rt.innerHTML = `<div class="meterHead"><div><h2>Meter / níveis</h2><p>Leitura de sinal da mesa em padrão de console digital. O traço branco indica o peak hold.</p></div><div class="meterLegend"><span class="lg green"></span> normal <span class="lg orange"></span> -20 dB <span class="lg red"></span> -6 dB</div></div><div class="meterTabs"></div><div id="meterGrid" class="meterGrid"></div>`;
+  rt.innerHTML = `<div class="meterHead"><div><h2>Meter / overview</h2><p>Visão geral no padrão de console digital. Clique em um grupo para abrir os meters detalhados.</p></div><div class="meterLegend"><span class="lg green"></span> normal <span class="lg orange"></span> -20 dB <span class="lg red"></span> -6 dB</div></div><div id="meterOverview" class="meterOverview"></div><div class="meterTabs"></div><div id="meterGrid" class="meterGrid"></div>`;
   const tabs = [['inputs', 'Inputs 1–16'], ['inputs2', 'Inputs 17–32'], ['aux', 'Aux / FX'], ['buses', 'Mix Bus 1–16'], ['main', 'Main / Mono']];
-  const bar = rt.querySelector('.meterTabs'); tabs.forEach(([k, t]) => { const b = document.createElement('button'); b.textContent = t; b.className = k === meterView ? 'on' : ''; b.onclick = () => { meterView = k; bar.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); renderMeterPage(); }; bar.appendChild(b); });
+  const bar = rt.querySelector('.meterTabs'); tabs.forEach(([k, t]) => { const b = document.createElement('button'); b.dataset.view = k; b.textContent = t; b.className = k === meterView ? 'on' : ''; b.onclick = () => { meterView = k; bar.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); renderMeterPage(); }; bar.appendChild(b); });
   renderMeterPage();
 }
 function buildRight() {
