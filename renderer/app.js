@@ -629,7 +629,7 @@ function renderMeterOverview() {
   add('MTX 1–6', meterOutputs.slice(16, 22), 'main', false);
 }
 function renderMeterPage() {
-  const host = $('#meterGrid'); if (!host) return; host.innerHTML = ''; renderMeterOverview(); renderMeterOverview();
+  const host = $('#meterGrid'); if (!host) return; host.innerHTML = ''; renderMeterOverview(); renderMeterOverview(); renderMeterOverview();
   let list = [];
   if (meterView === 'inputs') list = range(16, i => ({ label: 'Ch ' + p2(i), v: meterLevels[i - 1], key: i - 1, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i - 1] ?? 1)) * 20) : undefined }));
   else if (meterView === 'inputs2') list = range(16, i => ({ label: 'Ch ' + p2(i + 16), v: meterLevels[i + 15], key: i + 15, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i + 15] ?? 1)) * 20) : undefined }));
