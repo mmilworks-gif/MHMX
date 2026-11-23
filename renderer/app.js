@@ -148,12 +148,17 @@ function queryAll() {
     if (k.sec.includes('Gate')) ['on', 'thr', 'range'].forEach(p => l2.push(`${s.base}/gate/${p}`));
   });
   for (let i = 1; i <= 6; i++) l.push('/config/mute/' + i);
-  x32.query(l.concat(l2));
+  const all = l.concat(l2);
+  // A X32/M32 pode descartar respostas quando recebe uma rajada muito grande.
+  // Divide a leitura inicial em lotes menores, mantendo a interface responsiva.
+  let i = 0;
+  const sendBatch = () => { const part = all.slice(i, i + 36); i += 36; if (part.length) x32.query(part); if (i < all.length) setTimeout(sendBatch, 90); };
+  sendBatch();
 }
 
 // ---------- painel de detalhes ----------
 let reg = {}, pending = [], eqInfo = null, dynInfos = [], rtaOn = false, rtaData = [];
-let meterLevels = [], meterGr = [], meterOutputs = [], meterView = 'inputs', meterRenderPending = false;
+let meterLevels = [], meterGr = [], meterOutputs = [], meterView = 'all', meterRenderPending = false;
 let meterPeaks = [], meterPeakAt = [];
 const addReg = (a, f) => (reg[a] = reg[a] || []).push(f);
 function mkSlider(addr, fmt, val) {
@@ -547,8 +552,17 @@ function dynDraw() {
     for (let d = lo; d <= 0; d += 1) { const o = Math.max(lo, Math.min(0, out(d))); d === lo ? c.moveTo(X(d), Y(o)) : c.lineTo(X(d), Y(o)); } c.stroke();
     c.fillStyle = '#fff'; c.font = 'bold 14px sans-serif';
     c.fillText(gate ? `Limiar ${thr.toFixed(1)} dB   Range ${rg.toFixed(0)} dB` : `Limiar ${thr.toFixed(1)} dB   ${R}:1   Makeup +${mk.toFixed(1)} dB`, 40, 18);
-    if (!gate) {
-      const mi = allStrips().find(s => s.base === b)?.meter, raw = mi >= 0 ? meterLevels[mi] : undefined;
+    const mi = allStrips().find(s => s.base === b)?.meter;
+    if (gate) {
+      const gv = mi >= 0 ? meterGr[32 + mi] : undefined;
+      if (gv !== undefined) {
+        const open = gv > .75, activity = Math.max(0, Math.min(1, Number(gv) || 0));
+        c.fillStyle = open ? '#35e07f' : '#ff9b45'; c.fillRect(W - 150, 8, 12, 12);
+        c.fillStyle = open ? '#aaffc4' : '#ffd0a3'; c.font = 'bold 13px sans-serif'; c.fillText(open ? 'GATE ABERTO' : 'GATE FECHADO', W - 132, 18);
+        c.fillStyle = '#718090'; c.fillText(`movimento ${(activity * 100).toFixed(0)}%`, W - 150, 36);
+      }
+    } else {
+      const raw = mi >= 0 ? meterLevels[mi] : undefined;
       if (raw !== undefined && raw > 0) {
         const inn = Math.max(lo, Math.min(0, 20 * Math.log10(raw))), o = Math.max(lo, Math.min(0, out(inn))), gr = Math.max(0, inn - o);
         c.strokeStyle = '#ff4545'; c.lineWidth = 3; c.beginPath(); c.moveTo(X(inn), Y(inn)); c.lineTo(X(inn), Y(o)); c.stroke();
@@ -629,9 +643,17 @@ function renderMeterOverview() {
   add('MTX 1–6', meterOutputs.slice(16, 22), 'main', false);
 }
 function renderMeterPage() {
-  const host = $('#meterGrid'); if (!host) return; host.innerHTML = ''; renderMeterOverview(); renderMeterOverview(); renderMeterOverview();
+  const host = $('#meterGrid'); if (!host) return; host.innerHTML = ''; renderMeterOverview();
   let list = [];
-  if (meterView === 'inputs') list = range(16, i => ({ label: 'Ch ' + p2(i), v: meterLevels[i - 1], key: i - 1, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i - 1] ?? 1)) * 20) : undefined }));
+  if (meterView === 'all') list = [
+    ...range(32, i => ({ label: 'CH ' + p2(i), v: meterLevels[i - 1], key: i - 1, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i - 1] ?? 1)) * 20) : undefined })),
+    ...range(8, i => ({ label: 'AUX ' + i, v: meterLevels[31 + i], key: 31 + i })),
+    ...range(8, i => ({ label: 'FX ' + i, v: meterLevels[39 + i], key: 39 + i })),
+    ...range(16, i => ({ label: 'BUS ' + i, v: meterOutputs[i], key: 70 + i })),
+    ...range(6, i => ({ label: 'MTX ' + i, v: meterOutputs[15 + i], key: 86 + i })),
+    { label: 'MAIN L', v: meterOutputs[22], key: 92 }, { label: 'MAIN R', v: meterOutputs[23], key: 93 }, { label: 'MONO', v: meterOutputs[24], key: 94 }
+  ];
+  else if (meterView === 'inputs') list = range(16, i => ({ label: 'Ch ' + p2(i), v: meterLevels[i - 1], key: i - 1, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i - 1] ?? 1)) * 20) : undefined }));
   else if (meterView === 'inputs2') list = range(16, i => ({ label: 'Ch ' + p2(i + 16), v: meterLevels[i + 15], key: i + 15, gr: meterGr.length ? Math.max(0, (1 - (meterGr[64 + i + 15] ?? 1)) * 20) : undefined }));
   else if (meterView === 'aux') list = [...range(8, i => ({ label: 'Aux ' + i, v: meterLevels[31 + i], key: 31 + i })), ...range(8, i => ({ label: 'FX ' + i, v: meterLevels[39 + i], key: 39 + i }))];
   else if (meterView === 'buses') list = range(16, i => ({ label: 'Bus ' + i, v: meterOutputs[i], key: 70 + i }));
@@ -642,7 +664,7 @@ function scheduleMeterRender() { if (meterRenderPending) return; meterRenderPend
 function buildMeters() {
   const rt = special('Meter');
   rt.innerHTML = `<div class="meterHead"><div><h2>Meter / overview</h2><p>Visão geral no padrão de console digital. Clique em um grupo para abrir os meters detalhados.</p></div><div class="meterLegend"><span class="lg green"></span> normal <span class="lg orange"></span> -20 dB <span class="lg red"></span> -6 dB</div></div><div id="meterOverview" class="meterOverview"></div><div class="meterTabs"></div><div id="meterGrid" class="meterGrid"></div>`;
-  const tabs = [['inputs', 'Inputs 1–16'], ['inputs2', 'Inputs 17–32'], ['aux', 'Aux / FX'], ['buses', 'Mix Bus 1–16'], ['main', 'Main / Mono']];
+  const tabs = [['all', 'Tudo'], ['inputs', 'Inputs 1–16'], ['inputs2', 'Inputs 17–32'], ['aux', 'Aux / FX'], ['buses', 'Mix Bus 1–16'], ['main', 'Main / Mono']];
   const bar = rt.querySelector('.meterTabs'); tabs.forEach(([k, t]) => { const b = document.createElement('button'); b.dataset.view = k; b.textContent = t; b.className = k === meterView ? 'on' : ''; b.onclick = () => { meterView = k; bar.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); renderMeterPage(); }; bar.appendChild(b); });
   renderMeterPage();
 }
@@ -718,7 +740,7 @@ x32.onConn((s, ip) => {
   $('#connbar').hidden = s !== 'lost'; $('#app').classList.toggle('lost', s === 'lost');
   if (s === 'connecting') $('#status').textContent = 'Procurando a mesa em ' + ip + '...';
   if (s === 'lost') $('#status').textContent = 'Conexão perdida com ' + ip + '. Tentando reconectar...';
-  if (s === 'ok') { $('#status').textContent = demo ? 'Modo demo: mesa simulada' : 'Conectado a ' + ip; setTimeout(queryAll, 300); setTimeout(rebuildPage, 1800); }
+  if (s === 'ok') { $('#status').textContent = demo ? 'Modo demo: mesa simulada' : 'Conectado a ' + ip; build(cur || '1-32'); setTimeout(queryAll, 300); setTimeout(rebuildPage, 1800); }
 });
 x32.onUpdateReady(() => $('#btnInst').hidden = false);
 
