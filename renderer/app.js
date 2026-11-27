@@ -210,7 +210,7 @@ function section(name, s) {
   if (name === 'Config') {
     w.appendChild(textRow('Nome', b + '/config/name', 12)); w.appendChild(row('Cor', b + '/config/color', { t: 'e', opts: COLN })); w.appendChild(row('Ícone', b + '/config/icon', { t: 'e', opts: ICONS }));
     const n = document.createElement('p'); n.style.color = '#8b93a1'; n.textContent = 'O ícone é o número (1-74) da biblioteca da mesa.'; w.appendChild(n);
-  } else if (name === 'Preamp') [['Trim', b + '/preamp/trim', { t: 'f', fmt: lin(-18, 18, ' dB') }], ['Low cut', b + '/preamp/hpon', { t: 'b' }], ['Freq low cut', b + '/preamp/hpf', { t: 'f', fmt: logf(20, 400, 'Hz') }], ['Fase (inv.)', b + '/preamp/invert', { t: 'b' }], ['Delay entrada', b + '/delay/on', { t: 'b' }], ['Tempo delay', b + '/delay/time', { t: 'f', fmt: lin(0.3, 500, ' ms') }]].forEach(r => w.appendChild(row(...r)));
+  } else if (name === 'Preamp') [['Trim', b + '/preamp/trim', { t: 'f', fmt: lin(-18, 18, ' dB') }], ['Fase (inv.)', b + '/preamp/invert', { t: 'b' }], ['Delay entrada', b + '/delay/on', { t: 'b' }], ['Tempo delay', b + '/delay/time', { t: 'f', fmt: lin(0.3, 500, ' ms') }]].forEach(r => w.appendChild(row(...r)));
   else if (name === 'Gate') { dynGfx(w, b, 'gate'); dyn.gate(b + '/gate').forEach(r => w.appendChild(row(...r))); }
   else if (name === 'Dyn') { dynGfx(w, b, 'dyn'); dyn.dyn(b + '/dyn').forEach(r => w.appendChild(row(...r))); }
   else if (name === 'Sends') for (let i = 1; i <= k.sends; i++) w.appendChild(row(k.sl + ' ' + i, `${b}/mix/${p2(i)}/level`, { t: 'f', fmt: fmtDb }, `${b}/mix/${p2(i)}/on`));
@@ -228,7 +228,18 @@ function section(name, s) {
       [['Tipo', q + '/type', { t: 'e', opts: EQT }], ['Freq', q + '/f', { t: 'f', fmt: logf(20, 20000, 'Hz') }], ['Ganho', q + '/g', { t: 'f', fmt: lin(-15, 15, ' dB') }], ['Q', q + '/q', { t: 'f', fmt: f => qv(f).toFixed(2) }]].forEach(r => d.appendChild(row(...r)));
       bs.appendChild(d);
     }
-    w.appendChild(bs); eqInfo = { cv, b, n: k.eq }; setTimeout(eqDraw, 0);
+    const reset = document.createElement('button'); reset.textContent = 'Reset EQ — 0 dB'; reset.title = 'Zera o ganho de todas as bandas e deixa o EQ flat'; reset.onclick = () => {
+      const vals = [], on = b + '/eq/on'; state[on] = 0; vals.push([on, 'i', 0]);
+      for (let i = 1; i <= k.eq; i++) { const a = `${b}/eq/${i}/g`; state[a] = .5; vals.push([a, 'f', .5]); }
+      x32.batch(vals); eqDraw();
+    };
+    w.appendChild(bs);
+    const resetRow = document.createElement('div'); resetRow.className = 'eqActions'; resetRow.appendChild(reset); w.appendChild(resetRow);
+    if (['ch', 'auxin'].includes(s.kind)) {
+      const hp = document.createElement('div'); hp.className = 'eqLowCut'; hp.innerHTML = '<h4>Low Cut / HPF</h4>';
+      hp.appendChild(row('Ligado', b + '/preamp/hpon', { t: 'b' })); hp.appendChild(row('Frequência', b + '/preamp/hpf', { t: 'f', fmt: logf(20, 400, 'Hz') })); w.appendChild(hp);
+    }
+    eqInfo = { cv, b, n: k.eq }; setTimeout(eqDraw, 0);
   }
   return w;
 }
